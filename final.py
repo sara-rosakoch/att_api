@@ -23,6 +23,17 @@ class Users(db.Model):
     def __repr__(self):
         return f"<User {self.user_id}>"
 
+class Templates(db.Model):
+    __tablename__ = "templates"  # Stores fingerprint templates
+
+    template_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.String(50), db.ForeignKey("users.user_id"), nullable=False)
+    template_data = db.Column(db.Text, nullable=False)  # Base64 encoded fingerprint
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    def __repr__(self):
+        return f"<Templates {self.template_id}>"
+
 # Define Attendance Model
 class Attendance(db.Model):
     __tablename__ = "attendance"
@@ -113,29 +124,35 @@ def get_attendance():
     return jsonify({"attendance": attendance_data}), 200
 
 # Get Fingerprint Templates (New GET Endpoint)
-@app.route('/get-template', methods=['GET'])
+@app.route('/get-template', methods=['POST'])
 def get_template():
-    user_ids = request.args.getlist('user_ids')  # Get list of user IDs from query
+    data = request.get_json()
+    #user_ids = request.args.getlist('user_ids')  # Get list of user IDs from query
 
-    if not user_ids:
-        return jsonify({"message": "user_ids are required"}), 400
+    if not data or 'user_ids' not in data :
+        return jsonify({"message": "Missing required fields"}), 400
+
+    template_list = Templates.query.filter(Templates.user_id.in_(data["user_ids"])).all()
+
 
     # Simulating retrieval of fingerprint templates (replace with actual implementation)
-    templates = [{"user_id": user_id, "template": f"fingerprint_data_for_{user_id}"} for user_id in user_ids]
+    templates = [{"user_id" : template.user_id,"template":template.template_data} for template in template_list]
     
     return jsonify({"templates": templates}), 200
+
+
 # Enroll User with Fingerprint Template
-@app.route('/enroll-user', methods=['POST'])
-def enroll_user():
+@app.route('/create-user', methods=['POST'])
+def create_user():
     data = request.get_json()
 
-    if not data or 'user_id' not in data or 'name' not in data or 'fingerprint_template' not in data:
+    if not data or 'user_id' not in data or 'name' not in data :
         return jsonify({"message": "Missing required fields"}), 400
 
     user_id = data['user_id']
     name = data['name']
     tags = data.get('tags', [])  # Optional field
-    fingerprint_template = data['fingerprint_template']
+    #fingerprint_template = data['fingerprint_template']
 
     # Check if user already exists
     existing_user = Users.query.filter_by(user_id=user_id).first()
@@ -149,10 +166,10 @@ def enroll_user():
 
     # Store fingerprint template (Modify based on actual fingerprint storage method)
     # For now, we just simulate storing it.
-    fingerprint_data = {user_id: fingerprint_template}  # In reality, use a proper database table.
+    #fingerprint_data = {user_id: fingerprint_template}  # In reality, use a proper database table.
 
     return jsonify({
-        "message": "User enrolled successfully",
+        "message": "User created successfully",
         "user": {
             "user_id": user_id,
             "name": name,

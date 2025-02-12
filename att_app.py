@@ -1,27 +1,34 @@
 from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy  # type: ignore
+from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import json
 
 app = Flask(__name__)
 
-# Database Configuration (Ensure PostgreSQL is running & credentials are correct)
+# Database Configuration (Ensure PostgreSQL credentials are correct)
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://ladyb:newpassword@localhost:5432/att"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
 # Define User Model
 class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(150), unique=True, nullable=False)
-    email = db.Column(db.String(150), unique=True, nullable=False)
+    __tablename__ = "user"  # Explicitly define table name
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.String(50), unique=True, nullable=False)  # Ensure it exists
+    name = db.Column(db.String(100), nullable=False)
+    tags = db.Column(db.JSON, default=[])  # JSONB format for PostgreSQL
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    fingerprint_template = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
-        return f"<User {self.username}>"
+        return f"<User {self.user_id}>"
 
-# Create tables if they don't exist
+# Apply Changes to the Database
 with app.app_context():
+    db.create_all()
+
     try:
         db.create_all()
     except Exception as e:

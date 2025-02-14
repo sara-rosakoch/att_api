@@ -89,12 +89,13 @@ def get_users_by_tags():
 
     if not tags:
         return jsonify({"message": "Tags are required"}), 400
-    
-    users = Users.query.filter(Users.tags.op("?")(tags)).all()
-    
+
+    users = Users.query.filter(Users.tags.cast(db.Text).contains(tags)).all()
+
     result = [{"user_id": user.user_id, "name": user.name, "tags": user.tags} for user in users]
-    
+
     return jsonify({"users": result}), 200
+
 
 # Get Attendance Data (Changed to GET)
 @app.route('/get-attendance', methods=['GET'])

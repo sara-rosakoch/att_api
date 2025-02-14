@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 import functools
@@ -27,15 +28,17 @@ class Users(db.Model):
         return f"<User {self.user_id}>"
 
 class Templates(db.Model):
-    __tablename__ = "templates"
+    __tablename__ = "templates"  # Stores fingerprint templates
+
     template_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.String(50), db.ForeignKey("users.user_id"), nullable=False)
-    template_data = db.Column(db.Text, nullable=False)
+    template_data = db.Column(db.Text, nullable=False)  # Base64 encoded fingerprint
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     def __repr__(self):
         return f"<Templates {self.template_id}>"
 
+# Define Attendance Model
 class Attendance(db.Model):
     __tablename__ = "attendance"
     
@@ -43,6 +46,7 @@ class Attendance(db.Model):
     user_id = db.Column(db.String(50), db.ForeignKey('users.user_id'), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
+# Define Devices Model
 class Devices(db.Model):
     __tablename__ = "devices"
     
@@ -50,8 +54,18 @@ class Devices(db.Model):
     key = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
+# Apply Changes to the Database
 with app.app_context():
     db.create_all()
+
+# Global error handlers
+@app.errorhandler(SQLAlchemyError)
+def handle_db_error(error):
+    return jsonify({"message": "Database Error", "error": str(error)}), 400
+
+@app.errorhandler(Exception)
+def handle_general_error(error):
+    return jsonify({"message": "Server Error", "error": str(error)}), 400
 
 # Response Formatter Decorator
 def format_response(func):
@@ -72,10 +86,31 @@ def validate_request(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         data = request.get_json()
-        if not data or not all(k in data for k in ["id", "ts", "pd", "sig"]):
-            return {"message": "Invalid request format"}, 400
+        if not data or "id" not in data or "ts" not in data or "pd" not in data or "sig" not in data:
+            return jsonify({"message": "Invalid request format"}), 400
         return func(data["id"], data["ts"], data["pd"], data["sig"], *args, **kwargs)
     return wrapper
+
+# Get Fingerprint Templates
+@app.route('/get-template', methods=['POST'])
+@validate_request
+@format_response
+def get_template(req_id, ts, pd, sig):
+    user_id = pd.get("user_id")
+    if not user_id:
+        return {"message": "User ID is required"}, 400  
+    
+    template = Templates.query.filter_by(user_id=user_id).first()
+    user = Users.query.filter_by(user_id=user_id).first()
+    
+    if template and user:
+        return {"user_id": user_id, "template": template.template_data, "id": user.id}, 200
+    else:
+        return {"message": "Template not found"}, 404
+
+# Run Flask App
+if __name__ == '__main__':
+    app.run(debug=True)
 
 @app.route('/mark-attendance', methods=['POST'])
 @validate_request
@@ -121,15 +156,6 @@ def get_attendance(req_id, ts, pd, sig):
     start_time, end_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ"), datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%SZ")
     return {"attendance": [{"user_id": uid, "timestamps": [a.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") for a in Attendance.query.filter(Attendance.user_id == uid, Attendance.timestamp.between(start_time, end_time)).all()]} for uid in user_ids]}, 200
 
-@app.route('/get-template', methods=['POST'])
-@validate_request
-@format_response
-def get_template(req_id, ts, pd, sig):
-    user_id = pd.get("user_id")
-    if not user_id:
-        return {"message": "User ID is required"}, 400  
-    template = Templates.query.filter_by(user_id=user_id).first()
-    return {"template": template.template_data} if template else {"message": "Template not found"}, 200
 
 @app.route('/create-user', methods=['POST'])
 @validate_request

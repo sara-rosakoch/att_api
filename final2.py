@@ -28,15 +28,18 @@ class Users(db.Model):
         return f"<User {self.user_id}>"
 
 class Templates(db.Model):
-    __tablename__ = "templates"  # Stores fingerprint templates
+    __tablename__ = "templates"  
 
     template_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.String(50), db.ForeignKey("users.user_id"), nullable=False)
-    template_data = db.Column(db.Text, nullable=False)  # Base64 encoded fingerprint
+    user_id = db.Column(db.String(50), db.ForeignKey("users.user_id"), nullable=False, unique=True)  # Ensures 1-to-1 relation
+    template_data = db.Column(db.Text, nullable=False)  
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
+    user = db.relationship("Users", backref=db.backref("template", uselist=False))  # Defines one-to-one relationship
+
     def __repr__(self):
-        return f"<Templates {self.template_id}>"
+        return f"<Template {self.template_id}>"
+
 
 # Define Attendance Model
 class Attendance(db.Model):

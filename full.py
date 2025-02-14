@@ -22,6 +22,17 @@ class Users(db.Model):
 
     def __repr__(self):
         return f"<User {self.user_id}>"
+    
+class Templates(db.Model):
+    __tablename__ = "templates"  # Stores fingerprint templates
+
+    template_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.String(50), db.ForeignKey("users.user_id"), nullable=False)
+    template_data = db.Column(db.Text, nullable=False)  # Base64 encoded fingerprint
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    def __repr__(self):
+        return f"<Templates {self.template_id}>"
 
 # Define Attendance Model
 class Attendance(db.Model):

@@ -127,15 +127,17 @@ def get_attendance():
 # Get Fingerprint Templates
 @app.route('/get-template', methods=['GET'])
 def get_template():
-    user_ids = request.args.getlist('user_ids')
-
-    if not user_ids:
-        return jsonify({"message": "User IDs are required"}), 400
-
-    templates = Templates.query.filter(Templates.user_id.in_(user_ids)).all()
-    template_list = [{"user_id": template.user_id, "template": template.template_data} for template in templates]
+    user_id = request.args.get('user_id')
     
-    return jsonify({"templates": template_list}), 200
+    if not user_id:
+        return jsonify({"message": "User ID is required"}), 400  # Bad Request
+    
+    template = Templates.query.filter_by(user_id=user_id).first()
+    
+    if template:
+        return jsonify({"template": template.template_data}), 200  # Explicit 200 OK
+    else:
+        return jsonify({"message": "Template not found"}), 404  # Not Found
 
 # Create User
 @app.route('/create-user', methods=['POST'])

@@ -86,17 +86,20 @@ def mark_attendance():
 # Get Users by Tags (Changed to GET)
 @app.route('/get-users-by-tags', methods=['GET'])
 def get_users_by_tags():
-    tags = request.args.getlist('tags')  # Get tags as a list from query parameters
+    tags = request.args.getlist('tags')  # Get multiple tags from query params
 
     if not tags:
         return jsonify({"message": "Tags are required"}), 400
 
-    # Convert tags list to JSONB array format
-    users = Users.query.filter(Users.tags.op("@>")(db.cast(tags, JSONB))).all()
+    # Convert list to JSON format (ensure it's JSONB compatible)
+    tags_json = db.cast(tags, JSONB)
 
-    result = [{"user_id": user.user_id, "name": user.name, "tags": user.tags} for user in users]
+    users = Users.query.filter(Users.tags.op("@>")(tags_json)).all()
 
-    return jsonify({"users": result}), 200
+    if users:
+        return jsonify([{"user_id": user.user_id, "name": user.name, "tags": user.tags} for user in users]), 200
+    else:
+        return jsonify({"message": "No users found"}), 404
 
 # Get Attendance Data (Changed to GET)
 @app.route('/get-attendance', methods=['GET'])

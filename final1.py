@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 
 app = Flask(__name__)
@@ -85,17 +86,17 @@ def mark_attendance():
 # Get Users by Tags (Changed to GET)
 @app.route('/get-users-by-tags', methods=['GET'])
 def get_users_by_tags():
-    tags = request.args.getlist('tags')  # Get tags from query parameters
+    tags = request.args.getlist('tags')  # Get tags as a list from query parameters
 
     if not tags:
         return jsonify({"message": "Tags are required"}), 400
 
-    users = Users.query.filter(Users.tags.cast(db.Text).contains(tags)).all()
+    # Convert tags list to JSONB array format
+    users = Users.query.filter(Users.tags.op("@>")(db.cast(tags, JSONB))).all()
 
     result = [{"user_id": user.user_id, "name": user.name, "tags": user.tags} for user in users]
 
     return jsonify({"users": result}), 200
-
 
 # Get Attendance Data (Changed to GET)
 @app.route('/get-attendance', methods=['GET'])

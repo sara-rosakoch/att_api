@@ -31,7 +31,7 @@ class Templates(db.Model):
     __tablename__ = "templates"  
 
     template_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.String(50), db.ForeignKey("users.user_id"), nullable=False, unique=True)  # Ensures 1-to-1 relation
+    user_id = db.Column(db.String(50), db.ForeignKey("users.id"), nullable=False, unique=True)  # Ensures 1-to-1 relation
     template_data = db.Column(db.Text, nullable=False)  
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
@@ -46,7 +46,7 @@ class Attendance(db.Model):
     __tablename__ = "attendance"
     
     attendance_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.String(50), db.ForeignKey('users.user_id'), nullable=False)
+    user_id = db.Column(db.String(50), db.ForeignKey('users.id'), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 # Define Devices Model
@@ -61,7 +61,7 @@ class Devices(db.Model):
 with app.app_context():
     db.create_all()
 
-# Global error handlers
+#Global error handlers
 @app.errorhandler(SQLAlchemyError)
 def handle_db_error(error):
     return jsonify({"message": "Database Error", "error": str(error)}), 400
@@ -104,17 +104,14 @@ def get_template(req_id, ts, pd, sig):
         return {"message": "User ID is required"}, 400  
     
     template = Templates.query.filter_by(user_id=user_id).first()
-    user = Users.query.filter_by(user_id=user_id).first()
+   
     
-    if template and user:
-        return {"user_id": user_id, "template": template.template_data, "id": user.id}, 200
+    if template :
+        return {"user_id": user_id, "template": template.template_data }, 200
     else:
         return {"message": "Template not found"}, 404
 
 # Run Flask App
-if __name__ == '__main__':
-    app.run(debug=True)
-
 @app.route('/mark-attendance', methods=['POST'])
 @validate_request
 @format_response
